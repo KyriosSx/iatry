@@ -82,3 +82,7 @@ class ARIMA_Model:
         with open("predictions.csv", "w") as f:
             for prediction in self.predictions_listbox.get(0, tk.END):
                 f.write("{}\n".format(prediction))
+
+    if __name__ == "__main__":
+        main()
+
