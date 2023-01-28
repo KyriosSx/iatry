@@ -1,0 +1,100 @@
+import tkinter as tk
+from tkinter import filedialog
+from tkinter import messagebox
+import pandas as pd
+from statsmodels.tsa.arima_model import ARIMA
+from sklearn.metrics import mean_squared_error
+import numpy as np
+
+class ARIMA_Model:
+    def __init__(self, master):
+        self.master = master
+        master.title("ARIMA Model")
+
+        self.history_button = tk.Button(master, text="Select File", command=self.select_history)
+        self.history_button.grid(row=0, column=0, padx=5, pady=5)
+
+        self.future_results_button = tk.Button(master, text="Select File", command=self.select_future_results)
+        self.future_results_button.grid(row=1, column=0, padx=5, pady=5)
+
+        self.predict_button = tk.Button(master, text="Predict", command=self.predict)
+        self.predict_button.grid(row=2, column=0, padx=5, pady=5)
+
+        self.save_button = tk.Button(master, text="Save Predictions", command=self.save_predictions)
+        self.save_button.grid(row=2, column=1, padx=5, pady=5)
+
+    def select_history(self):
+        # Open a file dialog to select a history file
+        self.history_file = tk.filedialog.askopenfilename()
+
+    def select_future_results(self):
+        # Open a file dialog to select a future results file
+        self.future_results_file = tk.filedialog.askopenfilename()
+
+    def predict(self):
+        # Read the history file
+        history = pd.read_csv(self.history_file)
+        history = history.iloc[:, 1:2].values
+
+        # Read the future results file
+        future_results = pd.read_csv(self.future_results_file)
+        future_results = future_results.iloc[:, 1:2].values
+
+        # Combine the history and future results
+        data = pd.concat([pd.DataFrame(history), pd.DataFrame(future_results)])
+        data = data.values
+
+        # Create and fit the ARIMA model
+        model = ARIMA(data, order=(1,0,0))
+        model_fit = model.fit()
+
+        # Make predictions
+        predictions = model_fit.predict(len(data), len(data) + 5)
+
+        # Calculate the mean squared error
+        mse = mean_squared_error(future_results, predictions)
+
+        # Display the mean squared error
+        self.mse_label = tk.Label(self.master, text="Mean Squared Error: " + str(mse))
+        self.mse_label.grid(row=3, column=0, padx=5, pady=5)
+
+        # Display the predictions
+        self.predictions_label = tk.Label(self.master, text="Predictions: " + str(predictions))
+        self.predictions_label.grid(row=4, column=0, padx=5, pady=5)
+
+    def save_predictions(self):
+        # Open a file dialog to select a file to save the predictions to
+        predictions_file = tk.filedialog.asksaveasfilename()
+        if predictions_file:
+            # Save the predictions to the selected file
+            with open(predictions_file, 'w') as f:
+                for prediction in predictions:
+                    f.write(str(prediction) + '\n')
+        else:
+            # If the user cancels the file dialog, display a message
+            if not predictions_file:
+                tk.messagebox.showerror("Error", "No file selected. Predictions not saved.")
+                return
+            try:
+                # Save the predictions to the selected file
+                with open(predictions_file, 'w') as file:
+                    for prediction in predictions:
+                        file.write(str(prediction) + '\n')
+                # Display a message to confirm that the predictions were saved
+                tk.messagebox.showinfo("Success", "Predictions saved to file.")
+                except Exception as e:
+                tk.messagebox.showerror("Error", "An error occurred while saving the predictions.")
+                print("Error saving predictions: ", e)
+            try:
+                # Open a file dialog to select a file to save the predictions to
+                predictions_file = tk.filedialog.asksaveasfilename()
+                # If the user cancels the file dialog, display a message
+                if not predictions_file:
+                    tk.messagebox.showerror("Error", "No file selected. Predictions not saved.")
+                    return
+                # Save the predictions to the selected file
+                np.savetxt(predictions_file, predictions)
+                tk.messagebox.showinfo("Success", "Predictions saved to: " + predictions_file)
+            except Exception as e:
+                tk.messagebox.showerror("Error", "An error occurred while saving the predictions.")
+                print("Error saving predictions: ", e)
