@@ -85,10 +85,10 @@ class ARIMA_Model:
             for prediction in self.predictions_listbox.get(0, tk.END):
                 f.write("{}\n".format(prediction))
 
- def main():
-     root = Tk()
-     model = ARIMA_Model(root)
-     root.mainloop()
+        def main():
+            root = Tk()
+            model = ARIMA_Model(root)
+            root.mainloop()
 
-if __name__ == "__main__":
-    main()
+        if __name__ == "__main__":
+            main()
