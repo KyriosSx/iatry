@@ -2,9 +2,11 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 import pandas as pd
-from statsmodels.tsa.arima_model import ARIMA
+from statsmodels.tsa.arima.model import ARIMA
 from sklearn.metrics import mean_squared_error
 import numpy as np
+from tkinter import *
+
 
 class ARIMA_Model:
 
@@ -85,10 +87,12 @@ class ARIMA_Model:
             for prediction in self.predictions_listbox.get(0, tk.END):
                 f.write("{}\n".format(prediction))
 
-        def main():
-            root = Tk()
-            model = ARIMA_Model(root)
-            root.mainloop()
 
-        if __name__ == "__main__":
-            main()
+
+def main():
+    root = Tk()
+    model = ARIMA_Model(root)
+    root.mainloop()
+
+if __name__ == '__main__':
+    main()
