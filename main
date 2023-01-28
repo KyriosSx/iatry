@@ -62,39 +62,23 @@ class ARIMA_Model:
         self.predictions_label = tk.Label(self.master, text="Predictions: " + str(predictions))
         self.predictions_label.grid(row=4, column=0, padx=5, pady=5)
 
+
+
+    def make_predictions(self):
+        # Make predictions for the next 30 days
+        predictions = self.model.predict(n_periods=30)
+        # Clear the predictions listbox
+        self.predictions_listbox.delete(0, tk.END)
+        # Insert the predictions into the listbox
+        for prediction in predictions:
+            self.predictions_listbox.insert(tk.END, prediction)
+        # Calculate the mean squared error
+        mse = mean_squared_error(self.future_results, predictions)
+        # Display the mean squared error
+        self.mse_label.config(text="MSE: {:.2f}".format(mse))
+
     def save_predictions(self):
-        # Open a file dialog to select a file to save the predictions to
-        predictions_file = tk.filedialog.asksaveasfilename()
-        if predictions_file:
-            # Save the predictions to the selected file
-            with open(predictions_file, 'w') as f:
-                for prediction in predictions:
-                    f.write(str(prediction) + '\n')
-        else:
-            # If the user cancels the file dialog, display a message
-            if not predictions_file:
-                tk.messagebox.showerror("Error", "No file selected. Predictions not saved.")
-                return
-            try:
-                # Save the predictions to the selected file
-                with open(predictions_file, 'w') as file:
-                    for prediction in predictions:
-                        file.write(str(prediction) + '\n')
-                # Display a message to confirm that the predictions were saved
-                tk.messagebox.showinfo("Success", "Predictions saved to file.")
-                except Exception as e:
-                tk.messagebox.showerror("Error", "An error occurred while saving the predictions.")
-                print("Error saving predictions: ", e)
-            try:
-                # Open a file dialog to select a file to save the predictions to
-                predictions_file = tk.filedialog.asksaveasfilename()
-                # If the user cancels the file dialog, display a message
-                if not predictions_file:
-                    tk.messagebox.showerror("Error", "No file selected. Predictions not saved.")
-                    return
-                # Save the predictions to the selected file
-                np.savetxt(predictions_file, predictions)
-                tk.messagebox.showinfo("Success", "Predictions saved to: " + predictions_file)
-            except Exception as e:
-                tk.messagebox.showerror("Error", "An error occurred while saving the predictions.")
-                print("Error saving predictions: ", e)
+        # Save the predictions to a CSV file
+        with open("predictions.csv", "w") as f:
+            for prediction in self.predictions_listbox.get(0, tk.END):
+                f.write("{}\n".format(prediction))
