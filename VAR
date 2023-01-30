@@ -1,0 +1,54 @@
+import tkinter as tk
+from tkinter import filedialog
+import pandas as pd
+import numpy as np
+from statsmodels.tsa.arima.model import ARIMA
+import sys
+
+def select_history():
+    global history_path
+    history_path = filedialog.askopenfilename(initialdir = "/", title = "Select file", filetypes = (("CSV files", "*.csv"), ("all files", "*.*")))
+    print(history_path)
+
+def select_future():
+    global future_path
+    future_path = filedialog.askopenfilename(initialdir = "/", title = "Select file", filetypes = (("CSV files", "*.csv"), ("all files", "*.*")))
+    print(future_path)
+
+def predict():
+    history = pd.read_csv(history_path)
+    future = pd.read_csv(future_path)
+
+    model = ARIMA(history, order=(5,1,0))
+    model_fit = model.fit(disp=0)
+
+    predictions = model_fit.forecast(steps=len(future))[0]
+
+    result = tk.Tk()
+    result.title("Prediction Results")
+    result.geometry("200x200")
+    label = tk.Label(result, text="\n".join(map(str, predictions)), font=("Arial", 12))
+    label.pack()
+    result.mainloop()
+
+def save():
+    np.savetxt("predictions.csv", predictions, delimiter=",")
+    print("Results saved to predictions.csv")
+
+root = tk.Tk()
+root.title("ARIMA Predictive Model")
+root.geometry("300x300")
+
+select_history_button = tk.Button(root, text="Select History", command=select_history)
+select_history_button.pack()
+
+select_future_button = tk.Button(root, text="Select Future", command=select_future)
+select_future_button.pack()
+
+predict_button = tk.Button(root, text="Predict", command=predict)
+predict_button.pack()
+
+save_button = tk.Button(root, text="Save Results", command=save)
+save_button.pack()
+
+root.mainloop()
