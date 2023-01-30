@@ -15,12 +15,21 @@ def select_future():
     future = pd.read_csv(file_path)
 
 def predict():
-    global prediction
+    global prediction, mse
     model = VAR(history)
-    model_fit = model.fit()
-    prediction = model_fit.forecast(model_fit.y, steps=future.shape[0])
+    model_fit = model.fit(maxlags=10, ic='bic')
+    prediction = model_fit.forecast(history.values[-model_fit.k_ar:], steps=future.shape[0])
     prediction = pd.DataFrame(prediction, columns=history.columns)
-    prediction_label.config(text=prediction.to_string())
+    prediction = prediction.round().astype(int)
+    mse = ((prediction - future) ** 2).mean().mean()  # Calculate the MSE
+    prediction_text = ""
+    for i in range(10):
+        prediction_text += str(prediction.iloc[i, :].tolist()) + "\n"
+    prediction_text += "MSE: {:.2f}".format(mse)
+    prediction_label.config(text=prediction_text)
+
+
+
 
 def save_prediction():
     file_path = filedialog.asksaveasfilename(defaultextension=".csv")
