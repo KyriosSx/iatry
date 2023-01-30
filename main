@@ -1,98 +1,54 @@
 import tkinter as tk
 from tkinter import filedialog
-from tkinter import messagebox
 import pandas as pd
-from statsmodels.tsa.arima.model import ARIMA
-from sklearn.metrics import mean_squared_error
 import numpy as np
-from tkinter import *
+from statsmodels.tsa.arima.model import ARIMA
+import sys
 
+def select_history():
+    global history_path
+    history_path = filedialog.askopenfilename(initialdir = "/", title = "Select file", filetypes = (("CSV files", "*.csv"), ("all files", "*.*")))
+    print(history_path)
 
-class ARIMA_Model:
+def select_future():
+    global future_path
+    future_path = filedialog.askopenfilename(initialdir = "/", title = "Select file", filetypes = (("CSV files", "*.csv"), ("all files", "*.*")))
+    print(future_path)
 
+def predict():
+    history = pd.read_csv(history_path)
+    future = pd.read_csv(future_path)
 
-    def __init__(self, master):
-        self.master = master
-        master.title("ARIMA Model")
+    model = ARIMA(history, order=(5,1,0))
+    model_fit = model.fit(disp=0)
 
-        self.history_button = tk.Button(master, text="Select File", command=self.select_history)
-        self.history_button.grid(row=0, column=0, padx=5, pady=5)
+    predictions = model_fit.forecast(steps=len(future))[0]
 
-        self.future_results_button = tk.Button(master, text="Select File", command=self.select_future_results)
-        self.future_results_button.grid(row=1, column=0, padx=5, pady=5)
+    result = tk.Tk()
+    result.title("Prediction Results")
+    result.geometry("200x200")
+    label = tk.Label(result, text="\n".join(map(str, predictions)), font=("Arial", 12))
+    label.pack()
+    result.mainloop()
 
-        self.predict_button = tk.Button(master, text="Predict", command=self.predict)
-        self.predict_button.grid(row=2, column=0, padx=5, pady=5)
+def save():
+    np.savetxt("predictions.csv", predictions, delimiter=",")
+    print("Results saved to predictions.csv")
 
-        self.save_button = tk.Button(master, text="Save Predictions", command=self.save_predictions)
-        self.save_button.grid(row=2, column=1, padx=5, pady=5)
+root = tk.Tk()
+root.title("ARIMA Predictive Model")
+root.geometry("300x300")
 
-    def select_history(self):
-        # Open a file dialog to select a history file
-        self.history_file = tk.filedialog.askopenfilename()
+select_history_button = tk.Button(root, text="Select History", command=select_history)
+select_history_button.pack()
 
-    def select_future_results(self):
-        # Open a file dialog to select a future results file
-        self.future_results_file = tk.filedialog.askopenfilename()
+select_future_button = tk.Button(root, text="Select Future", command=select_future)
+select_future_button.pack()
 
-    def predict(self):
-        # Read the history file
-        history = pd.read_csv(self.history_file)
-        history = history.iloc[:, 1:2].values
+predict_button = tk.Button(root, text="Predict", command=predict)
+predict_button.pack()
 
-        # Read the future results file
-        future_results = pd.read_csv(self.future_results_file)
-        future_results = future_results.iloc[:, 1:2].values
+save_button = tk.Button(root, text="Save Results", command=save)
+save_button.pack()
 
-        # Combine the history and future results
-        data = pd.concat([pd.DataFrame(history), pd.DataFrame(future_results)])
-        data = data.values
-
-        # Create and fit the ARIMA model
-        model = ARIMA(data, order=(1,0,0))
-        model_fit = model.fit()
-
-        # Make predictions
-        predictions = model_fit.predict(len(data), len(data) + 5)
-
-        # Calculate the mean squared error
-        mse = mean_squared_error(future_results, predictions)
-
-        # Display the mean squared error
-        self.mse_label = tk.Label(self.master, text="Mean Squared Error: " + str(mse))
-        self.mse_label.grid(row=3, column=0, padx=5, pady=5)
-
-        # Display the predictions
-        self.predictions_label = tk.Label(self.master, text="Predictions: " + str(predictions))
-        self.predictions_label.grid(row=4, column=0, padx=5, pady=5)
-
-
-
-    def make_predictions(self):
-        # Make predictions for the next 30 days
-        predictions = self.model.predict(n_periods=30)
-        # Clear the predictions listbox
-        self.predictions_listbox.delete(0, tk.END)
-        # Insert the predictions into the listbox
-        for prediction in predictions:
-            self.predictions_listbox.insert(tk.END, prediction)
-        # Calculate the mean squared error
-        mse = mean_squared_error(self.future_results, predictions)
-        # Display the mean squared error
-        self.mse_label.config(text="MSE: {:.2f}".format(mse))
-
-    def save_predictions(self):
-        # Save the predictions to a CSV file
-        with open("predictions.csv", "w") as f:
-            for prediction in self.predictions_listbox.get(0, tk.END):
-                f.write("{}\n".format(prediction))
-
-
-
-def main():
-    root = Tk()
-    model = ARIMA_Model(root)
-    root.mainloop()
-
-if __name__ == '__main__':
-    main()
+root.mainloop()
