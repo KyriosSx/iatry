@@ -2,53 +2,196 @@ import tkinter as tk
 from tkinter import filedialog
 import pandas as pd
 import numpy as np
+from statsmodels.tsa.api import VAR
 from statsmodels.tsa.arima.model import ARIMA
-import sys
 
-def select_history():
-    global history_path
-    history_path = filedialog.askopenfilename(initialdir = "/", title = "Select file", filetypes = (("CSV files", "*.csv"), ("all files", "*.*")))
-    print(history_path)
+# Define function to run VAR model
+def run_var_model(historical_data, future_data, method, n_lags):
+    # Convert data to numpy array
+    historical_data_array = historical_data.values
+    future_data_array = future_data.values
 
-def select_future():
-    global future_path
-    future_path = filedialog.askopenfilename(initialdir = "/", title = "Select file", filetypes = (("CSV files", "*.csv"), ("all files", "*.*")))
-    print(future_path)
+    # Get number of input variables
+    n_vars = historical_data_array.shape[1]
 
-def predict():
-    history = pd.read_csv(history_path)
-    future = pd.read_csv(future_path)
+    # Initialize list to store predicted values
+    predicted_values = []
 
-    model = ARIMA(history, order=(5,1,0))
+    # Iterate over each row in future data
+    for row in future_data_array:
+        # Get last n_lags rows of historical data
+        lag_data = historical_data_array[-n_lags:, :]
+
+        # Reshape the row data to match the shape of lag_data
+        # Get input data as a 1D array
+        row_data = np.array([row])
+        if row_data.ndim == 1:
+            row_data = row_data.reshape(1, -1)
+        input_data = np.concatenate((lag_data, row_data), axis=0)
+
+        # Fit VAR model on historical data
+        model = VAR(input_data)
+        model_fit = model.fit(maxlags=n_lags, ic=method)
+
+        # Predict the next value
+        prediction = model_fit.forecast(input_data[-n_lags:, :], steps=1)
+
+        # Add the predicted value to the list
+        predicted_values.append(prediction[0])
+
+        # Update historical data array with current input data
+        historical_data_array = np.vstack([historical_data_array, input_data])
+
+    # Convert predicted values list to numpy array
+    predicted_values_array = np.array(predicted_values)
+
+    # Create a new DataFrame for predicted values
+    predicted_values_df = pd.DataFrame(predicted_values_array, index=future_data.index, columns=historical_data.columns)
+
+    return predicted_values_df
+
+# Define function to run ARIMA model
+def run_arima_model(historical_data, future_data):
+    model = ARIMA(historical_data, order=(1, 1, 1))
     model_fit = model.fit(disp=0)
 
-    predictions = model_fit.forecast(steps=len(future))[0]
+    # Initialize list to store predicted values
+    predicted_values = []
 
-    result = tk.Tk()
-    result.title("Prediction Results")
-    result.geometry("200x200")
-    label = tk.Label(result, text="\n".join(map(str, predictions)), font=("Arial", 12))
-    label.pack()
-    result.mainloop()
+    # Iterate over each row in future data
+    for index, row in future_data.iterrows():
+        # Predict the next value
+        prediction = model_fit.forecast(steps=1)
 
-def save():
-    np.savetxt("predictions.csv", predictions, delimiter=",")
-    print("Results saved to predictions.csv")
+        # Add the predicted value to the list
+        predicted_values.append(prediction[0])
 
+        # Add the predicted value to the historical data
+        historical_data = historical_data.append(pd.Series(prediction[0], index=[index], name='Value'))
+
+    # Convert predicted values list to numpy array
+    predicted_values_array = np.array(predicted_values)
+
+    # Create a new DataFrame for predicted values
+    predicted_values_df = pd.DataFrame(predicted_values_array, index=future_data.index, columns=['Value'])
+
+    return predicted_values_df
+
+#Define function to run ARIMA model
+def run_arima_model(historical_data, future_data):
+    model = ARIMA(historical_data, order=(1, 1, 1))
+    model_fit = model.fit(disp=0)
+    
+# Initialize list to store predicted values
+predicted_values = []
+
+# Iterate over each row in future data
+for index, row in future_data.iterrows():
+    # Predict the next value
+    prediction = model_fit.forecast(steps=1)
+
+    # Add the predicted value to the list
+    predicted_values.append(prediction[0])
+
+    # Add the predicted value to the historical data
+    historical_data = historical_data.append(pd.Series(prediction[0], index=[index], name='Value'))
+
+# Convert predicted values list to numpy array
+predicted_values_array = np.array(predicted_values)
+
+# Create a new DataFrame for predicted values
+predicted_values_df = pd.DataFrame(predicted_values_array, index=future_data.index, columns=['Value'])
+
+return predicted_values_df
+#Define function to run the selected model and display results
+def predict():
+# Determine which model to use
+model_type = model_var.get()
+# Determine which method to use for VAR model
+method = method_var.get()
+
+# Get the number of lags for VAR model
+n_lags = int(n_lags_var.get())
+
+# Load historical data
+historical_data = pd.read_csv(historical_file_path, header=None)
+
+# Convert the data to a numpy array
+historical_data_array = np.array(historical_data)
+
+# Load future data
+future_data = pd.read_csv(future_file_path, header=None)
+
+# Run the selected model
+if model_type == "VAR":
+    predicted_values = run_var_model(historical_data_array, future_data, method, n_lags)
+elif model_type == "ARIMA":
+    predicted_values = run_arima_model(historical_data_array, future_data)
+else:
+    predicted_values = pd.DataFrame()
+
+# Display the predicted values in the results label
+results_label.config(text=predicted_values.to_string())
+Create GUI
 root = tk.Tk()
-root.title("ARIMA Predictive Model")
-root.geometry("300x300")
+root.withdraw()
 
-select_history_button = tk.Button(root, text="Select History", command=select_history)
-select_history_button.pack()
+Define function to open file dialog for historical data
+def open_historical_file():
+global historical_file_path
+historical_file_path = filedialog.askopenfilename()
 
-select_future_button = tk.Button(root, text="Select Future", command=select_future)
-select_future_button.pack()
+Define function to open file dialog for future data
+def open_future_file():
+global future_file_path
+future_file_path = filedialog.askopenfilename()
 
-predict_button = tk.Button(root, text="Predict", command=predict)
-predict_button.pack()
+#Create window
+window = tk.Toplevel(root)
 
-save_button = tk.Button(root, text="Save Results", command=save)
-save_button.pack()
+#Create radio buttons for model selection
+model_var = tk.StringVar()
+model_var.set("VAR")
+var_radio = tk.Radiobutton(window, text="VAR", variable=model_var, value="VAR")
+arima_radio = tk.Radiobutton(window, text="ARIMA", variable=model_var, value="ARIMA")
+var_radio.grid(row=0, column=0)
+arima_radio.grid(row=0, column=1)
 
-root.mainloop()
+#Create radio buttons for VAR method selection
+method_var = tk.StringVar()
+method_var.set("aic")
+aic_radio = tk.Radiobutton(window, text="AIC", variable=method_var, value="aic")
+bic_radio = tk.Radiobutton(window, text="BIC", variable=method_var, value="bic")
+aic_radio.grid(row=1, column=0)
+bic_radio.grid(row=1, column=1)
+
+# Create label and button for historical data selection
+historical_file_label = tk.Label(window, text="Select historical data file:")
+historical_file_label.grid(row=2, column=0)
+historical_file_button = tk.Button(window, text="Browse", command=open_historical_file)
+historical_file_button.grid(row=2, column=1)
+
+# Create label and button for future data selection
+future_file_label = tk.Label(window, text="Select future data file:")
+future_file_label.grid(row=3, column=0)
+future_file_button = tk.Button(window, text="Browse", command=open_future_file)
+future_file_button.grid(row=3, column=1)
+
+# Create label and entry for number of lags
+n_lags_var = tk.StringVar()
+n_lags_var.set('2')
+n_lags_label = tk.Label(window, text="Number of lags:")
+n_lags_label.grid(row=4, column=0)
+n_lags_entry = tk.Entry(window, textvariable=n_lags_var)
+n_lags_entry.grid(row=4, column=1)
+
+# Create button to predict values
+predict_button = tk.Button(window, text="Predict", command=predict)
+predict_button.grid(row=5, column=0)
+
+# Create label to display results
+results_label = tk.Label(window, text="")
+results_label.grid(row=6, column=0)
+
+# Run GUI
+window.mainloop()
