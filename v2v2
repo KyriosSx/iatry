@@ -1,0 +1,137 @@
+#import libraries
+import pandas as pd
+import tkinter as tk
+from tkinter import filedialog
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+from statsmodels.tsa.vector_ar.var_model import VARResults
+import statsmodels.api as sm
+
+
+
+
+
+
+# Function to select a file using a GUI dialog
+def choose_file():
+    filename = filedialog.askopenfilename()
+    if filename:
+        return filename
+
+# Function to read data from a CSV file and prepare it for VAR modeling
+def read_data(filename):
+    data = pd.read_csv(filename, header=0, index_col=0)
+    data.index = pd.to_datetime(data.index)
+    scaler = StandardScaler()
+    data_scaled = pd.DataFrame(scaler.fit_transform(data), columns=data.columns, index=data.index)
+    return data_scaled
+
+# Function to split the data into a training set and a test set
+def split_data(data, test_size):
+    tscv = TimeSeriesSplit(n_splits=2)
+    for train_index, test_index in tscv.split(data):
+        train_data = data.iloc[train_index]
+        test_data = data.iloc[test_index]
+        break
+    return train_data, test_data
+
+# Function to train a VAR model on the historical data
+def train_model(data, lags):
+    model = sm.tsa.VAR(data)
+    results = model.fit(lags)
+    return results
+
+# Function to make predictions on the test data using the trained VAR model
+# Function to make predictions on the test data using the trained VAR or VARMAX model
+# Function to make predictions on the test data using the trained VAR model
+def make_predictions(model, data):
+    if isinstance(model, sm.tsa.vector_ar.var_model.VARResults):
+
+        lag_order = model.k_ar
+        predictions = model.forecast(data.values[-lag_order:], len(data))
+    elif isinstance(model, sm.tsa.statespace.varmax.VARMAXResults):
+        predictions = model.predict(start=data.index[0], end=data.index[-1], dynamic=False)
+    else:
+        raise TypeError("Model type not supported")
+    predictions = pd.DataFrame(predictions, index=data.index, columns=data.columns)
+    return predictions
+
+
+
+
+
+
+# Function to update the text box on the GUI with the predicted values
+def update_text(predictions):
+    text.delete("1.0", tk.END)
+    text.insert(tk.END, predictions.to_string())
+
+# Function to handle the predict button press on the GUI
+def predict():
+    historical_file = historical_filename.get()
+    future_file = future_filename.get()
+    test_size = float(test_size_spinbox.get())
+    data_historical = read_data(historical_file)
+    data_future = read_data(future_file)
+    data_historical_train, data_historical_test = split_data(data_historical, test_size)
+
+    # Define the range of hyperparameters to search over
+    lags_range = [1, 2, 3, 4, 5]
+    order_range = [(p, 0) for p in range(1, 6)]
+    trend_range = ['c', 'ct', 'ctt']
+    exog_range = [None, data_future]
+
+    # Train and evaluate models for each combination of hyperparameters
+    best_model = None
+    best_score = float('inf')
+    for lags in lags_range:
+        for order in order_range:
+            for trend in trend_range:
+                for exog in exog_range:
+                    model = sm.tsa.VARMAX(data_historical_train, order=order, trend=trend, exog=exog)
+                    results = model.fit(maxlags=lags, ic='aic')
+                    predictions = make_predictions(results, data_historical_test)
+                    score = ((predictions - data_historical_test) ** 2).sum().sum() / (
+                            len(data_historical_test) * len(data_historical_test.columns))
+                    if score < best_score:
+                        best_score = score
+                        best_model = results
+
+    # Make predictions on the test set using the best model
+    predictions = make_predictions(best_model, data_historical_test)
+    update_text(predictions)
+#Create the GUI window
+window = tk.Tk()
+window.title("VAR Prediction")
+window.geometry("500x500")
+
+#Create the GUI components for selecting the historical data file
+historical_label = tk.Label(window, text="Historical data:")
+historical_label.pack()
+historical_filename = tk.Entry(window)
+historical_filename.pack()
+historical_button = tk.Button(window, text="Select file", command=lambda: historical_filename.insert(tk.END, choose_file()))
+historical_button.pack()
+
+#Create the GUI components for selecting the future data file
+future_label = tk.Label(window, text="Future data:")
+future_label.pack()
+future_filename = tk.Entry(window)
+future_filename.pack()
+future_button = tk.Button(window, text="Select file", command=lambda: future_filename.insert(tk.END, choose_file()))
+future_button.pack()
+
+#Create the GUI components for setting the test size and making the prediction
+test_size_label = tk.Label(window, text="Test size:")
+test_size_label.pack()
+test_size_spinbox = tk.Spinbox(window, from_=0.0, to=1.0, increment=0.1)
+test_size_spinbox.pack()
+predict_button = tk.Button(window, text="Predict", command=predict)
+predict_button.pack()
+
+#Create the GUI component for displaying the predicted values
+text = tk.Text(window)
+text.pack()
+
+#Start the GUI event loop
+window.mainloop()
